@@ -1105,39 +1105,45 @@ function fillWhiteCards(node) {
   const grid = node.querySelector('[data-role="whiteCardsGrid"]');
   if (!grid) return;
   grid.innerHTML = "";
-  state.whiteCards.slice(0, 4).forEach(card => {
+  const cards = state.whiteCards.slice(0, 4);
+  cards.forEach((card, idx) => {
     const isLogoGrid = card.style === "logo-grid";
-    const isGift = !isLogoGrid && (card.icon === "gift" || /新客|福利|礼/.test(card.main || ""));
+    const isGift = card.icon === "gift" || /新客|福利|礼/.test(card.main || "");
     const div = document.createElement("div");
     div.className = "white-card"
       + (isGift ? " white-card--gift" : "")
       + (isLogoGrid ? " white-card--logo-grid" : "");
 
+    // 多卡片合并：用户勾选"与上方卡合并"时，本卡上方圆角去掉、与上卡贴合；
+    // 同时自动给上一张卡加 data-merge-bottom（去掉下圆角）
+    if (card.mergeWithPrev && idx > 0) {
+      div.dataset.mergeTop = "1";
+      const prevDom = grid.lastElementChild;
+      if (prevDom) prevDom.dataset.mergeBottom = "1";
+    }
+
+    // 主/副文案（按需生成，便于"只有主 / 只有副 / 主+副"任意组合）
+    const hasMain = !!(card.main && card.main.trim());
+    const hasSub  = !!(card.sub  && card.sub.trim());
+    let bodyInner = "";
+    if (hasMain) bodyInner += `<div class="wc-main">${escapeHtml(card.main)}</div>`;
+    if (hasSub)  bodyInner += `<div class="wc-sub">${highlightText(card.sub)}</div>`;
+
+    // Logo 网格（仅 logo-grid 形态；放进 .wc-body 内、文案之后）
     if (isLogoGrid) {
-      // 主标题 + 副文案 + Logo 网格（自适应 1~9 个，每行 3 列，最多 3 排）
       const logos = (card.logos || []).slice(0, 9);
       const logosHtml = logos.map(lg => {
         if (lg.src) {
           return `<div class="wc-lg-cell"><img src="${escapeAttr(lg.src)}" alt="${escapeAttr(lg.name || "")}" /></div>`;
         }
-        // 占位：黑色 20% 色块
         return `<div class="wc-lg-cell wc-lg-cell--placeholder" title="${escapeAttr(lg.name || "")}"></div>`;
       }).join("");
-      div.innerHTML = `
-        <div class="wc-body">
-          <div class="wc-main">${escapeHtml(card.main || "")}</div>
-          <div class="wc-sub">${highlightText(card.sub || "")}</div>
-        </div>
-        <div class="wc-logo-grid" data-count="${logos.length}">${logosHtml}</div>`;
-    } else {
-      // 默认形态：图标 + 主标题 + 副文案
-      div.innerHTML = `
-        <div class="wc-icon" data-td-icon="${escapeAttr(card.icon || "")}"></div>
-        <div class="wc-body">
-          <div class="wc-main">${escapeHtml(card.main || "")}</div>
-          <div class="wc-sub">${highlightText(card.sub || "")}</div>
-        </div>`;
+      bodyInner += `<div class="wc-logo-grid" data-count="${logos.length}">${logosHtml}</div>`;
     }
+
+    div.innerHTML = `
+      <div class="wc-icon" data-td-icon="${escapeAttr(card.icon || "")}"></div>
+      <div class="wc-body">${bodyInner}</div>`;
     grid.appendChild(div);
   });
 }
@@ -1200,6 +1206,17 @@ function renderWhiteCards() {
           <option value="logo-grid"${style === "logo-grid" ? " selected" : ""}>Logo 网格</option>
         </select>
       </div>`;
+    // 非首卡显示"与上方卡合并"开关
+    if (i > 0) {
+      html += `
+      <div class="sub-row">
+        <label>合并</label>
+        <label style="width:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dark-ui-88);">
+          <input type="checkbox" data-i="${i}" data-k="mergeWithPrev" ${card.mergeWithPrev ? "checked" : ""} />
+          与上方卡合并（去除中间圆角，视觉合并成大卡）
+        </label>
+      </div>`;
+    }
     // 图标卡片才显示图标选择
     if (style === "icon") {
       html += `
@@ -1906,12 +1923,12 @@ function bindEvents() {
       }
       // 普通字段（main/sub）
       const i = e.target.dataset.i, k = e.target.dataset.k;
-      if (i != null && k && k !== "icon" && k !== "style") {
+      if (i != null && k && k !== "icon" && k !== "style" && k !== "mergeWithPrev") {
         state.whiteCards[+i][k] = e.target.value;
         renderContentList();
       }
     });
-    // change：图标下拉 / 样式下拉
+    // change：图标下拉 / 样式下拉 / 合并勾选
     whiteCardsEditorEl.addEventListener("change", e => {
       const i = e.target.dataset.i, k = e.target.dataset.k;
       if (i == null) return;
@@ -1925,6 +1942,9 @@ function bindEvents() {
           state.whiteCards[+i].logos = [];
         }
         renderWhiteCards(); // 全量重渲染（编辑器结构变化）
+      } else if (k === "mergeWithPrev") {
+        state.whiteCards[+i].mergeWithPrev = e.target.checked;
+        renderContentList();
       }
     });
     // click：删除卡片 / 删除 Logo / 添加 Logo

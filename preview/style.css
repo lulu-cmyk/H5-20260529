@@ -2028,29 +2028,31 @@ input[type="file"]::file-selector-button {
 
 /* ============================================================
  * 白底卡片 · Logo 网格形态（white-card--logo-grid）
- *  - 主标题 + 副文案（顶部）
- *  - Logo 网格（自适应 1~9 个，每行 3 列，最多 3 排）
- *  - 单元格白底圆角 + 内部居中 logo（无图时显示黑 20% 占位）
+ *  - 保持"左图标 + 右内容区"两栏布局（与图标卡片一致）
+ *  - 内容区：[主标题] + [副文案] + [Logo 网格]，三者按需出现
+ *  - Logo 网格 1~9 自适应：默认 3 列；1 个=单列、2 个=两列；行数自动
  * ============================================================ */
-.white-card--logo-grid {
+/* logo-grid 形态不再切到 column，沿用 .white-card 默认 flex 行向；
+   仅在 .wc-body 内部的内容做垂直堆叠（默认即如此）。
+   主/副文案与 logo 网格之间的间距 16px。 */
+.white-card--logo-grid .wc-body {
+  display: flex;
   flex-direction: column;
-  align-items: stretch;
   gap: 16px;
 }
-.white-card--logo-grid .wc-body { width: 100%; }
 .wc-logo-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px 12px;
+  gap: 12px;
   width: 100%;
 }
-/* 1 个 logo：单格占满；2 个：两列；其余按 3 列网格自动换行（自适应 1~9） */
+/* 1 个 logo：单格占满；2 个：两列；3~9：3 列自动换行（最多 3 排） */
 .wc-logo-grid[data-count="1"] { grid-template-columns: 1fr; }
 .wc-logo-grid[data-count="2"] { grid-template-columns: repeat(2, 1fr); }
 .wc-lg-cell {
   background: #F4F4F6;          /* 与页面浅灰底一致，制造"格子感" */
   border-radius: 12px;
-  height: 120px;
+  aspect-ratio: 1.6 / 1;        /* 横向矩形格子，兼容 6 个 logo 排 2 行不至于太矮 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2065,6 +2067,38 @@ input[type="file"]::file-selector-button {
 /* 占位：黑色 20% 色块（待用户补充 logo 时显示） */
 .wc-lg-cell--placeholder {
   background: rgba(0, 0, 0, 0.20);
+}
+
+/* ============================================================
+ * 多卡片合并：连续相同形态卡片在视觉上合并成一张大卡片
+ *  - 内部相邻边圆角 0
+ *  - 上下卡片之间间距 0（顶到顶、底到底）
+ *  - 通过 JS 在 fillWhiteCards 计算 data-merge-top / data-merge-bottom 标记
+ * ============================================================ */
+.white-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+/* 上方相邻同形态：去掉上圆角 + 把上方间距合并为 0 */
+.white-card[data-merge-top="1"] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  margin-top: -24px;            /* 抵消 .white-cards-grid gap，让上下卡贴合 */
+  padding-top: 0;               /* 顶部不再二次留白（视觉上是一张大卡） */
+}
+/* 下方相邻同形态：去掉下圆角 */
+.white-card[data-merge-bottom="1"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+/* 当上方合并时，给一条极淡分割线（可选；保留视觉层次） */
+.white-card[data-merge-top="1"]::before {
+  content: "";
+  display: block;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.06);
+  margin: 0 -32px 32px;          /* 横跨整张卡（抵消 padding 32px）+ 与下文留 32px */
 }
 
 /* 编辑器：Logo 子项行 */
