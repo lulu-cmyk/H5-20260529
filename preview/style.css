@@ -2025,3 +2025,72 @@ input[type="file"]::file-selector-button {
   background: rgba(245,69,69,0.16);
   color: #FF6B6B;
 }
+
+/* ============================================================
+ * 白底卡片 · Logo 网格形态（white-card--logo-grid）
+ *  - 主标题 + 副文案（顶部）
+ *  - Logo 网格（自适应 1~9 个，每行 3 列，最多 3 排）
+ *  - 单元格白底圆角 + 内部居中 logo（无图时显示黑 20% 占位）
+ * ============================================================ */
+.white-card--logo-grid {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+}
+.white-card--logo-grid .wc-body { width: 100%; }
+.wc-logo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px 12px;
+  width: 100%;
+}
+/* 1 个 logo：单格占满；2 个：两列；其余按 3 列网格自动换行（自适应 1~9） */
+.wc-logo-grid[data-count="1"] { grid-template-columns: 1fr; }
+.wc-logo-grid[data-count="2"] { grid-template-columns: repeat(2, 1fr); }
+.wc-lg-cell {
+  background: #F4F4F6;          /* 与页面浅灰底一致，制造"格子感" */
+  border-radius: 12px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.wc-lg-cell img {
+  max-width: 70%;
+  max-height: 60%;
+  object-fit: contain;
+  display: block;
+}
+/* 占位：黑色 20% 色块（待用户补充 logo 时显示） */
+.wc-lg-cell--placeholder {
+  background: rgba(0, 0, 0, 0.20);
+}
+
+/* 编辑器：Logo 子项行 */
+.sub-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sub-logo-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+.sub-logo-row .sub-del-mini {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dark-ui-40, rgba(255,255,255,0.4));
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.sub-logo-row .sub-del-mini:hover {
+  background: rgba(245,69,69,0.16);
+  color: #FF6B6B;
+}

@@ -378,10 +378,19 @@ const state = {
     note: "内地 / 香港 / 新加坡 三地牌照　·　花旗 / 摩根大通 / 德意志银行 战略合作",
   },
   whiteCards: [
-    { icon: "wallet", main: "跨境收款", sub: "[1 分钟开店]，对接 Amazon / Shopify / TikTok Shop / Shopee / Lazada / eBay" },
-    { icon: "swap",   main: "实时汇兑", sub: "银行间汇率，[所见即所得]，0 汇损 · 秒级到账" },
-    { icon: "earth",  main: "全球付款", sub: "供应商付款 · 多国 VAT 缴税（[0 手续费]）" },
-    { icon: "gift",   main: "新客注册即享", sub: "手续费全免 · [100 万免费额度] · 绑店送好礼" },
+    { style: "icon", icon: "wallet", main: "跨境收款", sub: "[1 分钟开店]，对接全球主流电商平台",
+      logos: [
+        { name: "Amazon",      src: "" },
+        { name: "Shopify",     src: "" },
+        { name: "TikTok Shop", src: "" },
+        { name: "Shopee",      src: "" },
+        { name: "Lazada",      src: "" },
+        { name: "eBay",        src: "" },
+      ]
+    },
+    { style: "icon", icon: "swap",   main: "实时汇兑", sub: "银行间汇率，[所见即所得]，0 汇损 · 秒级到账", logos: [] },
+    { style: "icon", icon: "earth",  main: "全球付款", sub: "供应商付款 · 多国 VAT 缴税（[0 手续费]）", logos: [] },
+    { style: "icon", icon: "gift",   main: "新客注册即享", sub: "手续费全免 · [100 万免费额度] · 绑店送好礼", logos: [] },
   ],
   footerForm: "info",
   qrCodeDataUrl: null,
@@ -1097,15 +1106,38 @@ function fillWhiteCards(node) {
   if (!grid) return;
   grid.innerHTML = "";
   state.whiteCards.slice(0, 4).forEach(card => {
-    const isGift = card.icon === "gift" || /新客|福利|礼/.test(card.main || "");
+    const isLogoGrid = card.style === "logo-grid";
+    const isGift = !isLogoGrid && (card.icon === "gift" || /新客|福利|礼/.test(card.main || ""));
     const div = document.createElement("div");
-    div.className = "white-card" + (isGift ? " white-card--gift" : "");
-    div.innerHTML = `
-      <div class="wc-icon" data-td-icon="${escapeAttr(card.icon || "")}"></div>
-      <div class="wc-body">
-        <div class="wc-main">${escapeHtml(card.main || "")}</div>
-        <div class="wc-sub">${highlightText(card.sub || "")}</div>
-      </div>`;
+    div.className = "white-card"
+      + (isGift ? " white-card--gift" : "")
+      + (isLogoGrid ? " white-card--logo-grid" : "");
+
+    if (isLogoGrid) {
+      // 主标题 + 副文案 + Logo 网格（自适应 1~9 个，每行 3 列，最多 3 排）
+      const logos = (card.logos || []).slice(0, 9);
+      const logosHtml = logos.map(lg => {
+        if (lg.src) {
+          return `<div class="wc-lg-cell"><img src="${escapeAttr(lg.src)}" alt="${escapeAttr(lg.name || "")}" /></div>`;
+        }
+        // 占位：黑色 20% 色块
+        return `<div class="wc-lg-cell wc-lg-cell--placeholder" title="${escapeAttr(lg.name || "")}"></div>`;
+      }).join("");
+      div.innerHTML = `
+        <div class="wc-body">
+          <div class="wc-main">${escapeHtml(card.main || "")}</div>
+          <div class="wc-sub">${highlightText(card.sub || "")}</div>
+        </div>
+        <div class="wc-logo-grid" data-count="${logos.length}">${logosHtml}</div>`;
+    } else {
+      // 默认形态：图标 + 主标题 + 副文案
+      div.innerHTML = `
+        <div class="wc-icon" data-td-icon="${escapeAttr(card.icon || "")}"></div>
+        <div class="wc-body">
+          <div class="wc-main">${escapeHtml(card.main || "")}</div>
+          <div class="wc-sub">${highlightText(card.sub || "")}</div>
+        </div>`;
+    }
     grid.appendChild(div);
   });
 }
@@ -1138,8 +1170,8 @@ const WC_ICON_OPTIONS = [
   { label: "🔍 搜索/放大镜", value: "search" },
 ];
 
-// 渲染白底卡片：①预览交给 renderContentList（多实例统一）+ ②编辑器（操作台 ⑦ 区）
-// 数据来源：state.whiteCards = [{ icon, main, sub }]，sub 支持 [...] 高亮语法
+// 渲染白底卡片：①预览交给 renderContentList（多实例统一）+ ②编辑器（操作台 ⑧ 区）
+// 数据来源：state.whiteCards = [{ style:"icon"|"logo-grid", icon, main, sub, logos:[{name,src}] }]
 function renderWhiteCards() {
   // ===== 预览渲染（统一交给 renderContentList，遍历 modulesList 中所有 white-cards 实例）=====
   renderContentList();
@@ -1152,21 +1184,55 @@ function renderWhiteCards() {
   ).join("");
   editor.innerHTML = "";
   state.whiteCards.forEach((card, i) => {
+    const style = card.style === "logo-grid" ? "logo-grid" : "icon";
     const item = document.createElement("div");
     item.className = "sub-item";
-    item.innerHTML = `
+    // 头部 + 样式切换
+    let html = `
       <div style="display:flex;align-items:center;">
         <strong>卡片 ${i + 1}</strong>
         <button class="sub-del" data-del="${i}">删除</button>
       </div>
       <div class="sub-row">
+        <label>样式</label>
+        <select data-i="${i}" data-k="style">
+          <option value="icon"${style === "icon" ? " selected" : ""}>图标卡片</option>
+          <option value="logo-grid"${style === "logo-grid" ? " selected" : ""}>Logo 网格</option>
+        </select>
+      </div>`;
+    // 图标卡片才显示图标选择
+    if (style === "icon") {
+      html += `
+      <div class="sub-row">
         <label>图标</label>
         <select data-i="${i}" data-k="icon">${optionsHtml}</select>
-      </div>
+      </div>`;
+    }
+    html += `
       <div class="sub-row"><label>主标题</label><input type="text" data-i="${i}" data-k="main" value="${escapeAttr(card.main || "")}" /></div>
-      <div class="sub-row"><label>副文案</label><input type="text" data-i="${i}" data-k="sub" value="${escapeAttr(card.sub || "")}" /></div>
-    `;
-    item.querySelector("select").value = card.icon || "";
+      <div class="sub-row"><label>副文案</label><input type="text" data-i="${i}" data-k="sub" value="${escapeAttr(card.sub || "")}" /></div>`;
+    // logo-grid 模式：显示 Logo 子项编辑（增删）
+    if (style === "logo-grid") {
+      const logos = card.logos || [];
+      const logosHtml = logos.map((lg, j) => `
+        <div class="sub-logo-row">
+          <input type="text" placeholder="名称（如 Amazon）" data-i="${i}" data-lg-j="${j}" data-lg-k="name" value="${escapeAttr(lg.name || "")}" />
+          <input type="text" placeholder="图片 URL（留空显示占位）" data-i="${i}" data-lg-j="${j}" data-lg-k="src" value="${escapeAttr(lg.src || "")}" />
+          <button class="sub-del-mini" data-del-lg="${i}-${j}" title="删除">×</button>
+        </div>
+      `).join("");
+      html += `
+        <div class="sub-row" style="display:block;margin-top:8px;">
+          <label style="width:auto;color:rgba(255,255,255,0.5);font-size:11px;">Logo 列表（${logos.length}/9，每行 3 个，最多 3 排）</label>
+          <div class="sub-logo-list" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;">${logosHtml}</div>
+          <button class="btn-mini" data-add-lg="${i}" style="margin-top:6px;${logos.length >= 9 ? "opacity:0.4;pointer-events:none;" : ""}">+ 添加 Logo</button>
+        </div>`;
+    }
+    item.innerHTML = html;
+    if (style === "icon") {
+      const sel = item.querySelector('select[data-k="icon"]');
+      if (sel) sel.value = card.icon || "";
+    }
     editor.appendChild(item);
   });
 }
@@ -1820,28 +1886,69 @@ function bindEvents() {
     });
   }
 
-  // 白底卡片编辑器（⑧ 区）：渲染 + 双向绑定 + 添加/删除
+  // 白底卡片编辑器（⑧ 区）：渲染 + 双向绑定 + 添加/删除 + Logo 网格子项
   renderWhiteCards();
   const whiteCardsEditorEl = $("#whiteCardsEditor");
   if (whiteCardsEditorEl) {
-    // input：主标题 / 副文案 文本输入
+    // input：主标题 / 副文案 / Logo 名称 / Logo URL
     whiteCardsEditorEl.addEventListener("input", e => {
+      // Logo 子项输入（name / src）
+      const lgJ = e.target.dataset.lgJ;
+      const lgK = e.target.dataset.lgK;
+      if (lgJ != null && lgK) {
+        const i = +e.target.dataset.i;
+        const card = state.whiteCards[i];
+        if (!card.logos) card.logos = [];
+        if (!card.logos[+lgJ]) card.logos[+lgJ] = { name: "", src: "" };
+        card.logos[+lgJ][lgK] = e.target.value;
+        renderContentList();
+        return;
+      }
+      // 普通字段（main/sub）
       const i = e.target.dataset.i, k = e.target.dataset.k;
-      if (i != null && k && k !== "icon") {
+      if (i != null && k && k !== "icon" && k !== "style") {
         state.whiteCards[+i][k] = e.target.value;
-        renderWhiteCards();
+        renderContentList();
       }
     });
-    // change：图标下拉
+    // change：图标下拉 / 样式下拉
     whiteCardsEditorEl.addEventListener("change", e => {
       const i = e.target.dataset.i, k = e.target.dataset.k;
-      if (i != null && k === "icon") {
+      if (i == null) return;
+      if (k === "icon") {
         state.whiteCards[+i].icon = e.target.value;
-        renderWhiteCards();
+        renderContentList();
+      } else if (k === "style") {
+        state.whiteCards[+i].style = e.target.value;
+        // 切到 logo-grid 时，若 logos 为空，给一个空数组（避免 undefined）
+        if (e.target.value === "logo-grid" && !state.whiteCards[+i].logos) {
+          state.whiteCards[+i].logos = [];
+        }
+        renderWhiteCards(); // 全量重渲染（编辑器结构变化）
       }
     });
-    // click：删除按钮
+    // click：删除卡片 / 删除 Logo / 添加 Logo
     whiteCardsEditorEl.addEventListener("click", e => {
+      // 添加 Logo
+      const addLg = e.target.dataset.addLg;
+      if (addLg != null) {
+        const i = +addLg;
+        const card = state.whiteCards[i];
+        if (!card.logos) card.logos = [];
+        if (card.logos.length >= 9) { alert("最多 9 个 Logo（每行 3 个 × 3 排）"); return; }
+        card.logos.push({ name: "", src: "" });
+        renderWhiteCards();
+        return;
+      }
+      // 删除 Logo
+      const delLg = e.target.dataset.delLg;
+      if (delLg != null) {
+        const [i, j] = delLg.split("-").map(Number);
+        state.whiteCards[i].logos.splice(j, 1);
+        renderWhiteCards();
+        return;
+      }
+      // 删除卡片
       const idx = e.target.dataset.del;
       if (idx != null) {
         state.whiteCards.splice(+idx, 1);
@@ -1851,7 +1958,7 @@ function bindEvents() {
   }
   $("#addWhiteCard")?.addEventListener("click", () => {
     if (state.whiteCards.length >= 4) { alert("最多 4 张白底卡片"); return; }
-    state.whiteCards.push({ icon: "wallet", main: "新卡片", sub: "副文案描述" });
+    state.whiteCards.push({ style: "icon", icon: "wallet", main: "新卡片", sub: "副文案描述", logos: [] });
     renderWhiteCards();
   });
 
