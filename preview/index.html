@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>H5 视觉规范预览工具</title>
+<link rel="stylesheet" href="./style.css?v=92" />
+<script src="./html2canvas.min.js" defer></script>
+</head>
+<body>
+<div class="app">
+
+  <!-- ========== 左：预览区 ========== -->
+  <main class="preview-pane">
+    <div class="preview-toolbar">
+      <span class="preview-title">H5 预览（750px 画布）</span>
+      <span class="preview-meta" id="previewMeta">缩放：50%</span>
+    </div>
+    <div class="preview-stage" id="previewStage">
+      <div class="h5-canvas-wrap">
+      <div class="h5-canvas" id="h5Canvas" data-theme="telecom" data-bg="solid">
+
+        <!-- 形态 A 全局背景层（banner 图覆盖整个画布顶部，header + 内容均叠加在上） -->
+        <img class="canvas-banner-img" id="headerBannerImg" hidden alt="" />
+        <div class="canvas-banner-fade" id="headerFade" hidden></div>
+
+        <!-- ===== Header ===== -->
+        <header class="h5-header" id="h5Header" data-form="solid">
+          <div class="header-inner">
+            <div class="header-logo" id="headerLogo"></div>
+            <h1 class="header-title" id="headerTitle">主标题文字 <span class="hl">高亮</span></h1>
+            <p class="header-sub" id="headerSub">这里是副文案，描述活动核心信息</p>
+            <span class="header-tag" id="headerTag" hidden>限时活动</span>
+          </div>
+          <div class="header-illustration" id="headerIllu" hidden></div>
+        </header>
+
+        <!-- ===== Content ===== -->
+        <section class="h5-content" id="h5Content">
+
+          <!-- 子模块 1: 标题 + 图标化数据徽章（由 JS 根据 state.titleText 注入） -->
+          <div class="content-block" data-module="title-text" id="titleTextBlock">
+            <h2 class="content-title" id="titleTextTitle"></h2>
+            <div class="icon-stats" id="titleTextIconStats"></div>
+            <p class="content-text" id="titleTextNote" style="margin-top:24px;color:rgba(0,0,0,0.64);"></p>
+          </div>
+
+          <!-- 子模块 2: 优惠券（省钱钩子 4 个数据点） -->
+          <div class="content-block" data-module="coupon">
+            <h2 class="content-title">每 10 万美金 · 多省 <span class="hl">¥7,443</span></h2>
+            <div class="coupon-grid" id="couponGrid">
+              <!-- 动态注入 -->
+            </div>
+          </div>
+
+          <!-- 子模块 3: 表格（关闭，能力用白底卡片展示） -->
+          <div class="content-block" data-module="table" hidden>
+            <h2 class="content-title">我们能做什么</h2>
+            <div class="data-table">
+              <div class="dt-row dt-head">
+                <div class="dt-cell">服务</div>
+                <div class="dt-cell">说明</div>
+              </div>
+              <div class="dt-row">
+                <div class="dt-cell">跨境收款</div>
+                <div class="dt-cell">1分钟开店，对接 Amazon · Shopify · TikTok Shop 等</div>
+              </div>
+              <div class="dt-row">
+                <div class="dt-cell">实时汇兑</div>
+                <div class="dt-cell">银行间汇率，<strong>0汇损</strong> · 秒级到账</div>
+              </div>
+              <div class="dt-row">
+                <div class="dt-cell">全球付款</div>
+                <div class="dt-cell">供应商付款 · 多国VAT缴税（0手续费）</div>
+              </div>
+              <div class="dt-row">
+                <div class="dt-cell">新客福利</div>
+                <div class="dt-cell">手续费全免 · <strong>100万免费额度</strong> · 绑店送好礼</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 子模块 4: QA 气泡（跨境默认关） -->
+          <div class="content-block" data-module="qa">
+            <h2 class="content-title">常见问答</h2>
+            <div class="qa-list" id="qaList"></div>
+          </div>
+
+          <!-- 子模块 5: 手机界面流程（跨境默认关） -->
+          <div class="content-block" data-module="phone-flow">
+            <h2 class="content-title">操作流程</h2>
+            <div class="phone-flow phone-flow--multi" id="phoneFlow"></div>
+          </div>
+
+          <!-- 子模块 6: 输入框（跨境默认关） -->
+          <div class="content-block" data-module="input">
+            <h2 class="content-title">立即咨询</h2>
+            <div class="input-group">
+              <div class="input-field">
+                <input type="text" placeholder="请输入您的手机号" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 子模块 7: 白底卡片（能力 & 福利，由 JS 根据 state.whiteCards 注入） -->
+          <div class="content-block" data-module="white-cards">
+            <h2 class="content-title">我们能做什么</h2>
+            <div class="white-cards-grid" id="whiteCardsGrid"></div>
+          </div>
+
+        </section>
+
+        <!-- ===== Rules 活动规则 ===== -->
+        <section class="h5-rules" id="h5Rules" style="display:none;"></section>
+
+        <!-- ===== Footer ===== -->
+        <footer class="h5-footer" id="h5Footer" data-form="disclaimer">
+          <!-- 通用 footer-card：用于 A 机构信息 / B 推广跳转 / C 免责声明 / D 图片占位 -->
+          <div class="footer-card" id="footerCard">
+            <div class="fc-logo"><img src="assets/logos/own/智汇鹅.png" alt="智汇鹅" /></div>
+            <div class="fc-name" id="fcName" style="display:none;"></div>
+            <div class="fc-phone" id="fcPhone">global.tenpay.com　·　400-624-1888</div>
+            <div class="fc-copy" id="fcCopy">客服在线 9:00–21:00</div>
+          </div>
+
+          <!-- qr 形态专属节点 -->
+          <div class="qr-block" style="background:#fff;border-radius:16px;">
+            <div class="qr-block-left">
+              <div class="qr-block-title" id="qrBlockTitle">扫码联系 / 专属客户经理</div>
+              <div class="qr-block-en">SCAN ME</div>
+            </div>
+            <div class="qr-block-right">
+              <div class="qr-block-note">*以上活动细节详询客户经理</div>
+              <div class="qr-box" id="qrBox">
+                <span class="qr-placeholder">请上传<br>二维码</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="platform-strip">
+            <div class="platform-label">已支持平台</div>
+            <div class="platform-logos" id="platformLogos"></div>
+          </div>
+        </footer>
+
+      </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========== 右：操作台 ========== -->
+  <aside class="control-pane">
+    <div class="control-header">
+      <div class="tips-box">
+        <ul class="tips-list">
+          <li><code>/</code> &nbsp;手动换行（如：<code>新客注册立享 / 手续费全免</code>）</li>
+          <li><code>[文字]</code> &nbsp;高亮显示（品牌色）</li>
+          <li>AI 会按句意自动断句，不满意可用 <code>/</code> 自行调整</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="control-scroll">
+
+      <!-- 全局 -->
+      <fieldset class="ctrl-group">
+        <legend>① 全局主题</legend>
+
+        <div class="ctrl-row">
+          <label>业务主题</label>
+          <select id="themeSelect">
+            <option value="telecom">通讯（科技蓝）</option>
+            <option value="cross-border">跨境（翠绿）</option>
+            <option value="cross-border" selected>跨境（翠绿）</option>
+          </select>
+        </div>
+
+        <div class="ctrl-row">
+          <label>页面底色</label>
+          <select id="bgSelect">
+            <option value="solid">浅色（中性灰）</option>
+            <option value="gradient" selected>品牌色渐变（880px）</option>
+          </select>
+        </div>
+
+        <div class="ctrl-row" id="ctrlGradientColorRow">
+          <label>渐变主色</label>
+          <div class="gradient-swatches" id="gradientSwatches">
+            <button type="button" class="gs-item" data-gc="auto" title="跟随业务主题">
+              <span class="gs-auto">A</span>
+            </button>
+            <button type="button" class="gs-item" data-gc="#F2BF3E" style="--gc:#F2BF3E;" title="黄色 #F2BF3E"></button>
+            <button type="button" class="gs-item" data-gc="#0CBD6A" style="--gc:#0CBD6A;" title="绿色 #0CBD6A"></button>
+            <button type="button" class="gs-item" data-gc="#0052D9" style="--gc:#0052D9;" title="蓝色 #0052D9"></button>
+            <button type="button" class="gs-item" data-gc="#F54545" style="--gc:#F54545;" title="红色 #F54545"></button>
+            <button type="button" class="gs-item" data-gc="#FA9116" style="--gc:#FA9116;" title="橙色 #FA9116"></button>
+          </div>
+        </div>
+
+        <div class="ctrl-row">
+          <label>银行品牌色</label>
+          <select id="bankColorSelect">
+            <option value="auto">跟随主题（自动）</option>
+            <option value="cmb">招商银行 #C42D32</option>
+            <option value="icbc">工商银行 #BD3338</option>
+            <option value="ccb">建设银行 #2F6CB8</option>
+            <option value="abc">农业银行 #009583</option>
+            <option value="boc">中国银行 #B6002A</option>
+            <option value="bcm">交通银行 #0B6BD5</option>
+            <option value="cibf">广发银行 #D43D40</option>
+            <option value="ceb">光大银行 #843CC4</option>
+            <option value="hxb">华夏银行 #DB4C40</option>
+            <option value="cmbc">民生银行 #2E7BD9</option>
+            <option value="pab">平安银行 #EA5404</option>
+            <option value="spdb">浦发银行 #2662AB</option>
+            <option value="cib">兴业银行 #0054A3</option>
+            <option value="psbc">邮政储蓄 #14634A</option>
+            <option value="citic">中信银行 #D91920</option>
+            <option value="general">通用 #0CBD6A</option>
+            <option value="custom" selected>自定义</option>
+          </select>
+        </div>
+
+        <div class="ctrl-row" id="bankCustomColorRow" style="display:flex;">
+          <label>自定义色值</label>
+          <input type="text" id="bankCustomColorInput" placeholder="#RRGGBB" value="#FFCF00" />
+        </div>
+      </fieldset>
+
+      <!-- Header -->
+      <fieldset class="ctrl-group">
+        <legend>② Header 头图区</legend>
+
+        <div class="ctrl-row">
+          <label>形态</label>
+          <select id="headerForm">
+            <option value="solid" selected>形态 B：插图 + 标题（默认）</option>
+            <option value="image">形态 A：全幅 banner 图</option>
+            <option value="text-only">形态 B：纯文字（不放插图）</option>
+          </select>
+        </div>
+
+        <div class="ctrl-row">
+          <label>主标题</label>
+          <input type="text" id="ctrlTitle" value="腾讯官方 / [跨境电商收款]" />
+        </div>
+        <div class="ctrl-row">
+          <label>副文案</label>
+          <input type="text" id="ctrlSub" value="更懂中国商企的跨境支付平台" />
+        </div>
+        <div class="ctrl-row">
+          <label>显示 Tag</label>
+          <input type="checkbox" id="ctrlShowTag" checked />
+          <input type="text" id="ctrlTag" value="新客 100 万免费额度" />
+        </div>
+
+        <div class="ctrl-row" id="ctrlTagInvertRow">
+          <label>Tag 反色</label>
+          <label class="switch">
+            <input type="checkbox" id="ctrlTagInvert" />
+            <span class="switch-track"></span>
+            <span>开启反色（白底 + 品牌色文字）</span>
+          </label>
+        </div>
+
+        <div class="ctrl-row">
+          <label>对齐方式</label>
+          <select id="ctrlHeaderAlign">
+            <option value="left" selected>左对齐</option>
+            <option value="center">居中对齐</option>
+          </select>
+        </div>
+
+        <div class="ctrl-row">
+          <label>Logo 样式</label>
+          <select id="ctrlLogoLayout">
+            <option value="single" selected>单 Logo</option>
+            <option value="combined-x">联合展示（× 规则）</option>
+            <option value="endorsement">腾讯品牌背书（｜ 规则）</option>
+          </select>
+        </div>
+
+        <div class="ctrl-row">
+          <label id="ctrlLogoLabel">Logo 图</label>
+          <select id="ctrlLogoSelect">
+            <option value="auto">跟随主题（自动）</option>
+            <!-- 自有品牌 / 银行 logo 由 manifest 动态填充 -->
+            <option value="custom">— 自定义上传 —</option>
+            <option value="none">不显示 Logo</option>
+          </select>
+        </div>
+
+        <div class="ctrl-row" id="ctrlLogo2Row" style="display:none;">
+          <label>次 Logo</label>
+          <select id="ctrlLogo2Select">
+            <!-- 由 manifest 动态填充：自有品牌 + 银行 logo + 合作方图标 -->
+          </select>
+        </div>
+
+        <div class="ctrl-row" id="ctrlLogoCustomRow" style="display:none;">
+          <label></label>
+          <input type="file" id="ctrlLogoFile" accept="image/svg+xml,image/*" />
+          <button class="btn-mini" id="ctrlLogoClear" type="button" style="margin:0;">清除</button>
+        </div>
+
+        <div class="ctrl-row" id="ctrlBannerRow">
+          <label>Banner 图</label>
+          <input type="file" id="ctrlBannerFile" accept="image/*" />
+          <button class="btn-mini" id="ctrlBannerClear" type="button" style="margin:0;">清除</button>
+        </div>
+
+        <div class="ctrl-row" id="ctrlLogoInvertRow">
+          <label>Logo 反白</label>
+          <label class="switch">
+            <input type="checkbox" id="ctrlLogoInvert" />
+            <span class="switch-track"></span>
+            <span>开启反白（白色 logo）</span>
+          </label>
+        </div>
+
+        <div class="ctrl-row" id="ctrlIlluRow">
+          <label>插图</label>
+          <input type="file" id="ctrlIlluFile" accept="image/*" />
+          <button class="btn-mini" id="ctrlIlluClear" type="button" style="margin:0;">清除</button>
+        </div>
+      </fieldset>
+
+      <!-- Content 模块开关 -->
+      <fieldset class="ctrl-group">
+        <legend>③ Content 模块</legend>
+        <div class="ctrl-row">
+          <label class="switch">
+            <input type="checkbox" id="ctrlShowContentModules" checked />
+            <span class="switch-track"></span>
+            <span>显示内容模块</span>
+          </label>
+        </div>
+        <div id="contentModulesArea">
+        <div class="ctrl-checks">
+          <label><input type="checkbox" data-mod="title-text" checked /> 标题 + 文案</label>
+          <label><input type="checkbox" data-mod="coupon" checked /> 优惠券</label>
+          <label><input type="checkbox" data-mod="table" /> 表格</label>
+          <label><input type="checkbox" data-mod="qa" checked /> QA 问答</label>
+          <label><input type="checkbox" data-mod="phone-flow" checked /> 手机界面流程</label>
+          <label><input type="checkbox" data-mod="input" checked /> 输入框</label>
+          <label><input type="checkbox" data-mod="white-cards" checked /> 白底卡片</label>
+        </div>
+        <div class="ctrl-row" style="margin-top:12px;">
+          <label style="width:auto;color:rgba(255,255,255,0.5);">白底卡片内容编辑见下方 ⑦</label>
+        </div>
+      </div>
+      </fieldset>
+
+      <!-- 标题 + 文案 -->
+      <fieldset class="ctrl-group" id="ctrlTitleTextFieldset">
+        <legend>④ 标题 + 文案（含数据徽章 3 个）</legend>
+        <div class="ctrl-row">
+          <label>标题</label>
+          <input type="text" id="ctrlTitleTextTitle" />
+        </div>
+        <div class="ctrl-row" style="margin-top:8px;">
+          <label style="width:auto;">数据徽章（icon-stats）</label>
+          <a href="https://tdesign.tencent.com/icons" target="_blank" style="font-size:12px;color:#1A6BFF;text-decoration:none;">↗ 图标库</a>
+        </div>
+        <div id="iconStatsEditor"></div>
+        <div class="ctrl-row" style="margin-top:8px;">
+          <label>补充说明</label>
+          <input type="text" id="ctrlTitleTextNote" />
+        </div>
+      </fieldset>
+
+      <!-- 优惠券数据 -->
+      <fieldset class="ctrl-group" id="ctrlCouponFieldset">
+        <legend>⑤ 优惠券（最多 4 个）</legend>
+        <div id="couponEditor"></div>
+        <button class="btn-mini" id="addCoupon">+ 添加优惠券</button>
+      </fieldset>
+
+      <!-- QA 数据 -->
+      <fieldset class="ctrl-group" id="ctrlQAFieldset">
+        <legend>⑥ QA 问答（最多 4 组）<span class="legend-extra">样式：<select id="qaStyleSelect" class="legend-select"><option value="qa-chat">气泡对话</option><option value="default">折叠列表</option></select></span></legend>
+        <div id="qaEditor"></div>
+        <button class="btn-mini" id="addQA">+ 添加 QA</button>
+      </fieldset>
+
+      <!-- 手机流程 -->
+      <fieldset class="ctrl-group" id="ctrlPhoneFlowFieldset">
+        <legend>⑦ 手机界面流程</legend>
+        <div class="ctrl-row">
+          <label>步数</label>
+          <select id="phoneSteps">
+            <option value="1">1 步（单页大图）</option>
+            <option value="2">2 步</option>
+            <option value="3" selected>3 步</option>
+            <option value="4">4 步</option>
+            <option value="5">5 步</option>
+            <option value="6">6 步</option>
+          </select>
+        </div>
+        <div id="phoneFlowEditor"></div>
+      </fieldset>
+
+      <!-- 白底卡片 -->
+      <fieldset class="ctrl-group" id="ctrlWhiteCardsFieldset">
+        <legend>⑧ 白底卡片（最多 4 张）<span class="legend-extra"><a href="https://tdesign.tencent.com/icons" target="_blank" style="font-size:12px;color:#1A6BFF;text-decoration:none;">↗ TDesign 图标库</a></span></legend>
+        <div id="whiteCardsEditor"></div>
+        <button class="btn-mini" id="addWhiteCard">+ 添加卡片</button>
+      </fieldset>
+
+      <!-- Footer -->
+      <fieldset class="ctrl-group">
+        <legend>⑨ Footer 底部卡片</legend>
+        <div class="ctrl-row">
+          <label class="switch">
+            <input type="checkbox" id="ctrlShowFooter" />
+            <span class="switch-track"></span>
+            <span>显示底部卡片</span>
+          </label>
+        </div>
+        <div id="footerFormArea">
+        <div class="ctrl-row">
+          <label>形态</label>
+          <select id="footerForm">
+            <option value="info">A 机构信息卡</option>
+            <option value="promo">B 推广跳转卡</option>
+            <option value="disclaimer">C 免责声明卡</option>
+            <option value="image">D 图片卡</option>
+            <option value="info" selected>A 机构信息卡</option>
+          </select>
+        </div>
+
+        <div class="ctrl-row" id="ctrlQrRow">
+          <label>二维码</label>
+          <input type="file" id="ctrlQrFile" accept="image/*" />
+          <button class="btn-mini" id="ctrlQrClear" type="button" style="margin:0;">清除</button>
+        </div>
+        <div class="ctrl-row" id="ctrlQrTitleRow">
+          <label>主标题</label>
+          <input type="text" id="ctrlQrTitle" value="扫码联系 / 专属客户经理" />
+        </div>
+        <div class="ctrl-row" id="ctrlQrNameRow">
+          <label>客户经理</label>
+          <input type="text" id="ctrlQrName" value="陈佳怡" />
+        </div>
+        <div class="ctrl-row" id="ctrlQrNoteRow">
+          <label>备注</label>
+          <input type="text" id="ctrlQrNote" value="*以上活动细节详询客户经理" />
+        </div>
+        <div class="ctrl-row" id="ctrlPlatformsRow">
+          <label>支持平台</label>
+          <input type="text" id="ctrlPlatforms" value="Amazon, Mercado Libre, Shopify, TikTok Shop, Temu, Shein, Shopee" />
+        </div>
+      </div>
+      </fieldset>
+
+      <!-- 规则 -->
+      <fieldset class="ctrl-group">
+        <legend>⑩ 活动规则文本</legend>
+        <div class="ctrl-row">
+          <label class="switch">
+            <input type="checkbox" id="ctrlShowRules" checked />
+            <span class="switch-track"></span>
+            <span>显示活动规则</span>
+          </label>
+        </div>
+        <div id="rulesArea">
+        <textarea id="rulesText" rows="10">一、服务提供方
+1. 本服务由腾讯金融科技旗下智汇鹅提供，持有内地、香港、新加坡三地支付牌照。
+
+二、免责声明
+1. 花旗·摩根大通·德意志银行为战略合作方，服务受相关法律法规监管。
+2. 最终解释权归腾讯金融科技所有。</textarea>
+      </div>
+      </fieldset>
+
+    </div>
+
+    <!-- 导出区 -->
+    <div class="export-bar">
+      <div class="ctrl-row">
+        <label>导出倍率</label>
+        <select id="exportScale">
+          <option value="2" selected>2×（默认）</option>
+          <option value="3">3×（更清晰）</option>
+        </select>
+      </div>
+      <button class="btn-export" id="btnExport">📥 导出 PNG</button>
+      <span class="export-status" id="exportStatus"></span>
+    </div>
+  </aside>
+
+</div>
+
+<script src="./app.js?v=66"></script>
+</body>
+</html>

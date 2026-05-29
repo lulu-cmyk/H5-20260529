@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+**/.DS_Store
+__MACOSX
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node / 临时
+node_modules/
+*.log
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 项目内部缓存
+.codebuddy/
+brain/
