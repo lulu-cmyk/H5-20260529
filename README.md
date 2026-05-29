@@ -2,6 +2,16 @@
 
 通用 H5 营销页面生成器（750px 设计稿），配套 `h5-marketing-page` Skill 使用。
 
+## 仓库镜像
+
+| 平台 | 用途 | 地址 |
+|---|---|---|
+| **工蜂（公司内网，主仓库）** | 完整 Skill 包（含 SKILL.md、规范文档、所有图标素材） | https://git.woa.com/v_lllvhuang/h5-marketing-page-skill |
+| **GitHub（外网镜像，本仓库）** | 预览工具部分（preview/ 目录） | https://github.com/lulu-cmyk/H5-20260529 |
+
+> 公司内部同事请优先使用**工蜂仓库**（结构最完整，可直接作为 CodeBuddy Skill 安装）。
+> 本 GitHub 仓库仅为 `preview/` 子目录的外网镜像，方便外部访问。
+
 ## 目录
 
 - `preview/` — H5 预览工具（HTML + CSS + JS + 图标资源）
