@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>H5 视觉规范预览工具</title>
-<link rel="stylesheet" href="./style.css?v=92" />
+<link rel="stylesheet" href="./style.css?v=93" />
 <script src="./html2canvas.min.js" defer></script>
 </head>
 <body>
@@ -36,25 +36,24 @@
         </header>
 
         <!-- ===== Content ===== -->
-        <section class="h5-content" id="h5Content">
+        <!-- 模块由 JS 按 state.modulesList 顺序动态注入；DOM 来源于下方 <template id="moduleTemplates"> -->
+        <section class="h5-content" id="h5Content"></section>
 
-          <!-- 子模块 1: 标题 + 图标化数据徽章（由 JS 根据 state.titleText 注入） -->
-          <div class="content-block" data-module="title-text" id="titleTextBlock">
-            <h2 class="content-title" id="titleTextTitle"></h2>
-            <div class="icon-stats" id="titleTextIconStats"></div>
-            <p class="content-text" id="titleTextNote" style="margin-top:24px;color:rgba(0,0,0,0.64);"></p>
+        <!-- 模块 DOM 模板（被 JS 克隆并注入到 #h5Content） -->
+        <template id="moduleTemplates">
+          <!-- type=title-text -->
+          <div class="content-block" data-module="title-text">
+            <h2 class="content-title" data-role="title"></h2>
+            <div class="icon-stats" data-role="iconStats"></div>
+            <p class="content-text" data-role="note" style="margin-top:24px;color:rgba(0,0,0,0.64);"></p>
           </div>
-
-          <!-- 子模块 2: 优惠券（省钱钩子 4 个数据点） -->
+          <!-- type=coupon -->
           <div class="content-block" data-module="coupon">
             <h2 class="content-title">每 10 万美金 · 多省 <span class="hl">¥7,443</span></h2>
-            <div class="coupon-grid" id="couponGrid">
-              <!-- 动态注入 -->
-            </div>
+            <div class="coupon-grid" data-role="couponGrid"></div>
           </div>
-
-          <!-- 子模块 3: 表格（关闭，能力用白底卡片展示） -->
-          <div class="content-block" data-module="table" hidden>
+          <!-- type=table -->
+          <div class="content-block" data-module="table">
             <h2 class="content-title">我们能做什么</h2>
             <div class="data-table">
               <div class="dt-row dt-head">
@@ -79,20 +78,17 @@
               </div>
             </div>
           </div>
-
-          <!-- 子模块 4: QA 气泡（跨境默认关） -->
+          <!-- type=qa -->
           <div class="content-block" data-module="qa">
             <h2 class="content-title">常见问答</h2>
-            <div class="qa-list" id="qaList"></div>
+            <div class="qa-list" data-role="qaList"></div>
           </div>
-
-          <!-- 子模块 5: 手机界面流程（跨境默认关） -->
+          <!-- type=phone-flow -->
           <div class="content-block" data-module="phone-flow">
             <h2 class="content-title">操作流程</h2>
-            <div class="phone-flow phone-flow--multi" id="phoneFlow"></div>
+            <div class="phone-flow phone-flow--multi" data-role="phoneFlow"></div>
           </div>
-
-          <!-- 子模块 6: 输入框（跨境默认关） -->
+          <!-- type=input -->
           <div class="content-block" data-module="input">
             <h2 class="content-title">立即咨询</h2>
             <div class="input-group">
@@ -101,14 +97,13 @@
               </div>
             </div>
           </div>
-
-          <!-- 子模块 7: 白底卡片（能力 & 福利，由 JS 根据 state.whiteCards 注入） -->
+          <!-- type=white-cards -->
           <div class="content-block" data-module="white-cards">
             <h2 class="content-title">我们能做什么</h2>
-            <div class="white-cards-grid" id="whiteCardsGrid"></div>
+            <div class="white-cards-grid" data-role="whiteCardsGrid"></div>
           </div>
+        </template>
 
-        </section>
 
         <!-- ===== Rules 活动规则 ===== -->
         <section class="h5-rules" id="h5Rules" style="display:none;"></section>
@@ -325,9 +320,9 @@
         </div>
       </fieldset>
 
-      <!-- Content 模块开关 -->
+      <!-- Content 模块编排（拖拽排序 + 显隐 + 添加/删除） -->
       <fieldset class="ctrl-group">
-        <legend>③ Content 模块</legend>
+        <legend>③ Content 模块（拖拽排序）</legend>
         <div class="ctrl-row">
           <label class="switch">
             <input type="checkbox" id="ctrlShowContentModules" checked />
@@ -336,19 +331,25 @@
           </label>
         </div>
         <div id="contentModulesArea">
-        <div class="ctrl-checks">
-          <label><input type="checkbox" data-mod="title-text" checked /> 标题 + 文案</label>
-          <label><input type="checkbox" data-mod="coupon" checked /> 优惠券</label>
-          <label><input type="checkbox" data-mod="table" /> 表格</label>
-          <label><input type="checkbox" data-mod="qa" checked /> QA 问答</label>
-          <label><input type="checkbox" data-mod="phone-flow" checked /> 手机界面流程</label>
-          <label><input type="checkbox" data-mod="input" checked /> 输入框</label>
-          <label><input type="checkbox" data-mod="white-cards" checked /> 白底卡片</label>
+          <!-- 模块编排列表（由 JS 渲染）：每行 = 一个实例，可拖拽、勾选显隐、删除 -->
+          <ol class="module-list" id="moduleList"></ol>
+          <div class="ctrl-row" style="margin-top:8px;">
+            <label style="width:auto;">+ 添加模块</label>
+            <select id="moduleAddType">
+              <option value="title-text">标题 + 文案</option>
+              <option value="coupon">优惠券</option>
+              <option value="table">表格</option>
+              <option value="qa">QA 问答</option>
+              <option value="phone-flow">手机界面流程</option>
+              <option value="input">输入框</option>
+              <option value="white-cards">白底卡片</option>
+            </select>
+            <button class="btn-mini" id="moduleAddBtn" style="margin-left:8px;">添加</button>
+          </div>
+          <div class="ctrl-row" style="margin-top:8px;">
+            <label style="width:auto;color:rgba(255,255,255,0.5);font-size:12px;">提示：长按 ⋮⋮ 拖拽排序；同一模块多次添加将共享内容，便于在不同位置重复展示</label>
+          </div>
         </div>
-        <div class="ctrl-row" style="margin-top:12px;">
-          <label style="width:auto;color:rgba(255,255,255,0.5);">白底卡片内容编辑见下方 ⑦</label>
-        </div>
-      </div>
       </fieldset>
 
       <!-- 标题 + 文案 -->
@@ -491,6 +492,6 @@
 
 </div>
 
-<script src="./app.js?v=66"></script>
+<script src="./app.js?v=67"></script>
 </body>
 </html>

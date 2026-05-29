@@ -1938,3 +1938,90 @@ input[type="file"]::file-selector-button {
 
 /* 链接（如 TDesign 图标库） */
 .control-pane a { color: var(--dark-accent); }
+
+/* ============================================================
+ * Content 模块编排列表（③ Content 模块拖拽排序）
+ * ============================================================ */
+.module-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.module-list .module-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--dark-app-bg);
+  border: 1px solid var(--dark-panel-border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--dark-ui-88);
+  cursor: grab;
+  user-select: none;
+  transition: background .12s, border-color .12s;
+}
+.module-list .module-item:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.18);
+}
+.module-list .module-item.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+.module-list .module-item.drop-before { border-top: 2px solid var(--dark-accent); }
+.module-list .module-item.drop-after  { border-bottom: 2px solid var(--dark-accent); }
+
+/* 拖拽手柄 */
+.module-item .mi-drag {
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--dark-ui-40, rgba(255,255,255,0.4));
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -2px;
+}
+/* 序号徽章 */
+.module-item .mi-index {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  color: var(--dark-ui-64);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* 类型名 */
+.module-item .mi-name {
+  flex: 1;
+  color: var(--dark-ui-88);
+  font-weight: 500;
+}
+/* 显隐 checkbox（复用原生 + ctrl-checks 视觉） */
+.module-item .mi-vis {
+  flex-shrink: 0;
+}
+/* 删除按钮（小） */
+.module-item .mi-del {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dark-ui-40, rgba(255,255,255,0.4));
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.module-item .mi-del:hover {
+  background: rgba(245,69,69,0.16);
+  color: #FF6B6B;
+}

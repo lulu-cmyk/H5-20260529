@@ -23,3 +23,6 @@ venv/
 # 项目内部缓存
 .codebuddy/
 brain/
+
+# 备份文件
+*.bak

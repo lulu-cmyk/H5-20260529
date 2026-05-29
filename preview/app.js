@@ -351,6 +351,14 @@ const state = {
     "input":       false,
     "white-cards": true,     // 能力 & 福利
   },
+  // 模块编排列表（顺序唯一来源 + 显隐 + 同类型多实例）
+  // 每个条目 { id, type, visible }；id 用于 DOM 唯一标识，便于拖拽
+  // 同一 type 出现多次：共享同一份 state（如多个 coupon 块都展示 state.coupons）
+  modulesList: [
+    { id: "m1", type: "title-text",  visible: true  },
+    { id: "m2", type: "coupon",      visible: true  },
+    { id: "m3", type: "white-cards", visible: true  },
+  ],
   coupons: [
     { amount: "0.3%",   name: "提现封顶费率",    cond: "最低低至 0.05%" },
     { amount: "0",      name: "汇损",            cond: "实时锁汇" },
@@ -956,11 +964,155 @@ function closeIconSvg() {
     <line x1="18" y1="6" x2="6" y2="18"/>
   </svg>`;
 }
-function renderModules() {
-  $$("#h5Content > .content-block").forEach(el => {
-    const mod = el.dataset.module;
-    el.hidden = !state.modules[mod];
+// ============================================================
+// Content 模块编排：按 state.modulesList 顺序克隆模板 → 注入 #h5Content
+// 同类型多实例共享同一份 state（重复展示同份内容，便于在不同位置插入）
+// ============================================================
+const MODULE_TYPE_LABELS = {
+  "title-text":  "标题 + 文案",
+  "coupon":      "优惠券",
+  "table":       "表格",
+  "qa":          "QA 问答",
+  "phone-flow":  "手机界面流程",
+  "input":       "输入框",
+  "white-cards": "白底卡片",
+};
+
+function renderContentList() {
+  const container = $("#h5Content");
+  const tplRoot = $("#moduleTemplates");
+  if (!container || !tplRoot) return;
+  container.innerHTML = "";
+
+  state.modulesList.forEach(inst => {
+    if (!inst.visible) return;
+    // 找到对应类型的模板（按 data-module 匹配）
+    const tplBlock = tplRoot.content.querySelector(`.content-block[data-module="${inst.type}"]`);
+    if (!tplBlock) return;
+    const node = tplBlock.cloneNode(true);
+    node.dataset.instanceId = inst.id;
+    container.appendChild(node);
+    // 按类型注入数据
+    fillModuleContent(node, inst.type);
   });
+
+  // 模块异步图标（td-icon）注入完毕后刷新
+  if (typeof renderTdIcons === "function") renderTdIcons();
+}
+
+// 把 state 数据填充到指定模块 DOM 块
+function fillModuleContent(node, type) {
+  switch (type) {
+    case "title-text":   fillTitleText(node);   break;
+    case "coupon":       fillCoupon(node);      break;
+    case "qa":           fillQA(node);          break;
+    case "phone-flow":   fillPhoneFlow(node);   break;
+    case "white-cards":  fillWhiteCards(node);  break;
+    case "table":        /* 静态内容，无需填充 */ break;
+    case "input":        /* 静态内容，无需填充 */ break;
+  }
+}
+
+function fillTitleText(node) {
+  const t = state.titleText || {};
+  const titleEl = node.querySelector('[data-role="title"]');
+  if (titleEl) titleEl.innerHTML = highlightText(t.title || "");
+  const noteEl = node.querySelector('[data-role="note"]');
+  if (noteEl) noteEl.textContent = t.note || "";
+  const grid = node.querySelector('[data-role="iconStats"]');
+  if (grid) {
+    grid.innerHTML = "";
+    (t.iconStats || []).slice(0, 3).forEach(s => {
+      const div = document.createElement("div");
+      div.className = "icon-stat";
+      div.innerHTML = `
+        <div class="is-icon" data-td-icon="${escapeAttr(s.icon || "")}"></div>
+        <div class="is-body">
+          <div class="is-num">${escapeHtml(s.num || "")}</div>
+          <div class="is-label">${escapeHtml(s.label || "")}</div>
+        </div>`;
+      grid.appendChild(div);
+    });
+  }
+}
+
+function fillCoupon(node) {
+  const grid = node.querySelector('[data-role="couponGrid"]');
+  if (!grid) return;
+  grid.innerHTML = "";
+  state.coupons.slice(0, 4).forEach(c => {
+    const card = document.createElement("div");
+    card.className = "coupon";
+    card.innerHTML = `
+      <div class="coupon-amount">${escapeHtml(c.amount)}</div>
+      <div class="coupon-name">${escapeHtml(c.name)}</div>
+      <div class="coupon-cond">${escapeHtml(c.cond)}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function fillQA(node) {
+  const list = node.querySelector('[data-role="qaList"]');
+  if (!list) return;
+  list.dataset.style = state.qaStyle || "qa-chat";
+  list.innerHTML = "";
+  if (state.qaStyle === "default") {
+    state.qa.slice(0, 4).forEach(item => {
+      const wrap = document.createElement("div");
+      wrap.className = "qa-default-item";
+      wrap.innerHTML = `
+        <div class="qa-default-q">${escapeHtml(item.q)}</div>
+        <div class="qa-default-a">${escapeHtml(item.a)}</div>`;
+      list.appendChild(wrap);
+    });
+  } else {
+    state.qa.slice(0, 4).forEach(item => {
+      list.appendChild(buildQAItem("q", item.q));
+      list.appendChild(buildQAItem("a", item.a));
+    });
+  }
+}
+
+function fillPhoneFlow(node) {
+  const wrap = node.querySelector('[data-role="phoneFlow"]');
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  const n = state.phoneSteps;
+  if (n === 1) {
+    wrap.classList.remove("phone-flow--multi");
+    wrap.classList.add("phone-flow--single");
+    wrap.appendChild(buildPhoneCard("single", null, state.phoneStepLabels[0] || "单页流程引导文案，最多 40 字"));
+  } else {
+    wrap.classList.remove("phone-flow--single");
+    wrap.classList.add("phone-flow--multi");
+    for (let i = 0; i < n; i++) {
+      wrap.appendChild(buildPhoneCard("multi", i + 1, state.phoneStepLabels[i] || `步骤${i + 1}`));
+    }
+  }
+}
+
+function fillWhiteCards(node) {
+  const grid = node.querySelector('[data-role="whiteCardsGrid"]');
+  if (!grid) return;
+  grid.innerHTML = "";
+  state.whiteCards.slice(0, 4).forEach(card => {
+    const isGift = card.icon === "gift" || /新客|福利|礼/.test(card.main || "");
+    const div = document.createElement("div");
+    div.className = "white-card" + (isGift ? " white-card--gift" : "");
+    div.innerHTML = `
+      <div class="wc-icon" data-td-icon="${escapeAttr(card.icon || "")}"></div>
+      <div class="wc-body">
+        <div class="wc-main">${escapeHtml(card.main || "")}</div>
+        <div class="wc-sub">${highlightText(card.sub || "")}</div>
+      </div>`;
+    grid.appendChild(div);
+  });
+}
+
+// 兼容旧调用：renderModules / 各类 render 中"刷新预览"的部分统一走 renderContentList
+function renderModules() {
+  renderContentList();
 }
 
 // 白底卡片可选图标列表（中文标签 + TDesign 图标名）
@@ -986,30 +1138,13 @@ const WC_ICON_OPTIONS = [
   { label: "🔍 搜索/放大镜", value: "search" },
 ];
 
-// 渲染白底卡片：①预览（注入到 #whiteCardsGrid）+ ②编辑器（操作台 ⑦ 区）
+// 渲染白底卡片：①预览交给 renderContentList（多实例统一）+ ②编辑器（操作台 ⑦ 区）
 // 数据来源：state.whiteCards = [{ icon, main, sub }]，sub 支持 [...] 高亮语法
 function renderWhiteCards() {
-  // ===== 预览渲染 =====
-  const grid = $("#whiteCardsGrid");
-  if (grid) {
-    grid.innerHTML = "";
-    state.whiteCards.slice(0, 4).forEach((card, i) => {
-      const isGift = card.icon === "gift" || /新客|福利|礼/.test(card.main || "");
-      const div = document.createElement("div");
-      div.className = "white-card" + (isGift ? " white-card--gift" : "");
-      div.innerHTML = `
-        <div class="wc-icon" data-td-icon="${escapeAttr(card.icon || "")}"></div>
-        <div class="wc-body">
-          <div class="wc-main">${escapeHtml(card.main || "")}</div>
-          <div class="wc-sub">${highlightText(card.sub || "")}</div>
-        </div>`;
-      grid.appendChild(div);
-    });
-    // 触发 td icon 异步加载
-    if (typeof renderTdIcons === "function") renderTdIcons();
-  }
+  // ===== 预览渲染（统一交给 renderContentList，遍历 modulesList 中所有 white-cards 实例）=====
+  renderContentList();
 
-  // ===== 编辑器渲染（⑦ 区）=====
+  // ===== 编辑器渲染（⑧ 区）=====
   const editor = $("#whiteCardsEditor");
   if (!editor) return;
   const optionsHtml = WC_ICON_OPTIONS.map(opt =>
@@ -1041,27 +1176,8 @@ const renderWcIconEditor = renderWhiteCards;
 
 // 仅刷新预览（输入时调用，避免编辑器 DOM 重建导致输入框失焦）
 function renderTitleTextView() {
-  const t = state.titleText || {};
-  const titleEl = $("#titleTextTitle");
-  if (titleEl) titleEl.innerHTML = highlightText(t.title || "");
-  const noteEl = $("#titleTextNote");
-  if (noteEl) noteEl.textContent = t.note || "";
-  const grid = $("#titleTextIconStats");
-  if (grid) {
-    grid.innerHTML = "";
-    (t.iconStats || []).slice(0, 3).forEach(s => {
-      const div = document.createElement("div");
-      div.className = "icon-stat";
-      div.innerHTML = `
-        <div class="is-icon" data-td-icon="${escapeAttr(s.icon || "")}"></div>
-        <div class="is-body">
-          <div class="is-num">${escapeHtml(s.num || "")}</div>
-          <div class="is-label">${escapeHtml(s.label || "")}</div>
-        </div>`;
-      grid.appendChild(div);
-    });
-    if (typeof renderTdIcons === "function") renderTdIcons();
-  }
+  // 多实例统一刷新
+  renderContentList();
 }
 
 // 全量渲染：预览 + 编辑器（首次或结构变化时调用）
@@ -1097,18 +1213,8 @@ function renderTitleText() {
 }
 
 function renderCoupons() {
-  const grid = $("#couponGrid");
-  grid.innerHTML = "";
-  state.coupons.slice(0, 4).forEach(c => {
-    const card = document.createElement("div");
-    card.className = "coupon";
-    card.innerHTML = `
-      <div class="coupon-amount">${escapeHtml(c.amount)}</div>
-      <div class="coupon-name">${escapeHtml(c.name)}</div>
-      <div class="coupon-cond">${escapeHtml(c.cond)}</div>
-    `;
-    grid.appendChild(card);
-  });
+  // 预览统一交给 renderContentList（多实例）
+  renderContentList();
 
   // 同时刷新优惠券编辑器
   const editor = $("#couponEditor");
@@ -1130,28 +1236,8 @@ function renderCoupons() {
 }
 
 function renderQA() {
-  const list = $("#qaList");
-  list.dataset.style = state.qaStyle || "qa-chat";
-  list.innerHTML = "";
-
-  if (state.qaStyle === "default") {
-    // 折叠问答样式（来自 credit-card-ops SKILL）
-    state.qa.slice(0, 4).forEach(item => {
-      const wrap = document.createElement("div");
-      wrap.className = "qa-default-item";
-      wrap.innerHTML = `
-        <div class="qa-default-q">${escapeHtml(item.q)}</div>
-        <div class="qa-default-a">${escapeHtml(item.a)}</div>
-      `;
-      list.appendChild(wrap);
-    });
-  } else {
-    // 气泡样式（原有）
-    state.qa.slice(0, 4).forEach(item => {
-      list.appendChild(buildQAItem("q", item.q));
-      list.appendChild(buildQAItem("a", item.a));
-    });
-  }
+  // 预览统一交给 renderContentList（多实例）
+  renderContentList();
 
   // 编辑器
   const editor = $("#qaEditor");
@@ -1209,25 +1295,11 @@ function qaTailSvg(type) {
 }
 
 function renderPhoneFlow() {
-  const wrap = $("#phoneFlow");
-  wrap.innerHTML = "";
-  const n = state.phoneSteps;
-
-  if (n === 1) {
-    wrap.classList.remove("phone-flow--multi");
-    wrap.classList.add("phone-flow--single");
-    const card = buildPhoneCard("single", null, state.phoneStepLabels[0] || "单页流程引导文案，最多 40 字");
-    wrap.appendChild(card);
-  } else {
-    wrap.classList.remove("phone-flow--single");
-    wrap.classList.add("phone-flow--multi");
-    for (let i = 0; i < n; i++) {
-      const card = buildPhoneCard("multi", i + 1, state.phoneStepLabels[i] || `步骤${i + 1}`);
-      wrap.appendChild(card);
-    }
-  }
+  // 预览统一交给 renderContentList（多实例）
+  renderContentList();
 
   // 编辑器
+  const n = state.phoneSteps;
   const editor = $("#phoneFlowEditor");
   editor.innerHTML = "";
   for (let i = 0; i < n; i++) {
@@ -1575,8 +1647,10 @@ function bindEvents() {
     });
   }
 
-  // 模块开关 ↔ 操作面板对应 fieldset / 子区域 联动隐藏
-  // 未勾选某个 Content 模块时，下方对应的操作面板分组应整体隐藏，避免冗余视觉
+  // ===========================================================
+  // ③ Content 模块编排：拖拽排序 + 显隐 + 添加/删除（多实例共享 state）
+  // ===========================================================
+  // 模块类型 → 对应操作面板 fieldset 选择器
   const MOD_TO_PANEL = {
     "title-text":  "#ctrlTitleTextFieldset", // ④ 标题 + 文案
     "coupon":      "#ctrlCouponFieldset",     // ⑤ 优惠券
@@ -1584,24 +1658,138 @@ function bindEvents() {
     "phone-flow":  "#ctrlPhoneFlowFieldset",  // ⑦ 手机界面流程
     "white-cards": "#ctrlWhiteCardsFieldset", // ⑧ 白底卡片
   };
-  function syncModuleControlPanel(mod, checked) {
-    const sel = MOD_TO_PANEL[mod];
-    if (!sel) return;
-    const el = $(sel);
-    if (el) el.style.display = checked ? "" : "none";
+
+  // 同步操作面板 fieldset 显隐：
+  // 只要 modulesList 中存在该 type 的可见实例（visible=true），就显示对应 fieldset；否则隐藏
+  function syncAllControlPanels() {
+    Object.keys(MOD_TO_PANEL).forEach(type => {
+      const el = $(MOD_TO_PANEL[type]);
+      if (!el) return;
+      const exists = state.modulesList.some(m => m.type === type && m.visible);
+      el.style.display = exists ? "" : "none";
+    });
   }
 
-  // 模块开关
-  $$('.ctrl-checks input[data-mod]').forEach(cb => {
-    // 用 state 同步 checkbox 初始状态（数据驱动）
-    cb.checked = !!state.modules[cb.dataset.mod];
-    // 初始化时同步隐藏未勾选模块的对应操作面板
-    syncModuleControlPanel(cb.dataset.mod, cb.checked);
-    cb.addEventListener("change", () => {
-      state.modules[cb.dataset.mod] = cb.checked;
-      renderModules();
-      syncModuleControlPanel(cb.dataset.mod, cb.checked);
+  function uidGen(prefix) {
+    return prefix + "_" + Math.random().toString(36).slice(2, 8);
+  }
+
+  // 渲染 ③ 操作面板的模块编排列表
+  function renderModuleList() {
+    const list = $("#moduleList");
+    if (!list) return;
+    list.innerHTML = "";
+    state.modulesList.forEach((inst, idx) => {
+      const li = document.createElement("li");
+      li.className = "module-item";
+      li.draggable = true;
+      li.dataset.id = inst.id;
+      li.dataset.idx = String(idx);
+      li.innerHTML = `
+        <span class="mi-drag" title="拖拽排序">⋮⋮</span>
+        <span class="mi-index">${idx + 1}</span>
+        <span class="mi-name">${MODULE_TYPE_LABELS[inst.type] || inst.type}</span>
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--dark-ui-64);">
+          <input type="checkbox" class="mi-vis" ${inst.visible ? "checked" : ""} />
+          显示
+        </label>
+        <button class="mi-del" title="删除" data-del-id="${inst.id}">×</button>
+      `;
+      list.appendChild(li);
     });
+    bindModuleListDnD();
+  }
+
+  // 拖拽排序（HTML5 drag/drop）
+  function bindModuleListDnD() {
+    const list = $("#moduleList");
+    if (!list) return;
+    let draggingEl = null;
+
+    list.querySelectorAll(".module-item").forEach(item => {
+      item.addEventListener("dragstart", e => {
+        draggingEl = item;
+        item.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        try { e.dataTransfer.setData("text/plain", item.dataset.id); } catch (_) {}
+      });
+      item.addEventListener("dragend", () => {
+        item.classList.remove("dragging");
+        list.querySelectorAll(".module-item").forEach(el => {
+          el.classList.remove("drop-before", "drop-after");
+        });
+        draggingEl = null;
+      });
+      item.addEventListener("dragover", e => {
+        e.preventDefault();
+        if (!draggingEl || draggingEl === item) return;
+        const rect = item.getBoundingClientRect();
+        const isAfter = (e.clientY - rect.top) > rect.height / 2;
+        item.classList.toggle("drop-before", !isAfter);
+        item.classList.toggle("drop-after",  isAfter);
+      });
+      item.addEventListener("dragleave", () => {
+        item.classList.remove("drop-before", "drop-after");
+      });
+      item.addEventListener("drop", e => {
+        e.preventDefault();
+        if (!draggingEl || draggingEl === item) return;
+        const fromId = draggingEl.dataset.id;
+        const toId   = item.dataset.id;
+        const rect = item.getBoundingClientRect();
+        const isAfter = (e.clientY - rect.top) > rect.height / 2;
+        const fromIdx = state.modulesList.findIndex(m => m.id === fromId);
+        let   toIdx   = state.modulesList.findIndex(m => m.id === toId);
+        if (fromIdx === -1 || toIdx === -1) return;
+        const [moved] = state.modulesList.splice(fromIdx, 1);
+        // 重算 toIdx：删除 fromIdx 后，若 toIdx > fromIdx 需要 -1
+        if (toIdx > fromIdx) toIdx -= 1;
+        const insertIdx = isAfter ? toIdx + 1 : toIdx;
+        state.modulesList.splice(insertIdx, 0, moved);
+        renderModuleList();
+        renderContentList();
+      });
+    });
+  }
+
+  // 初始化 ③：渲染列表 + 同步操作面板
+  renderModuleList();
+  syncAllControlPanels();
+
+  // 显隐勾选
+  $("#moduleList")?.addEventListener("change", e => {
+    if (!e.target.classList.contains("mi-vis")) return;
+    const li = e.target.closest(".module-item");
+    if (!li) return;
+    const inst = state.modulesList.find(m => m.id === li.dataset.id);
+    if (!inst) return;
+    inst.visible = e.target.checked;
+    renderContentList();
+    syncAllControlPanels();
+  });
+
+  // 删除按钮
+  $("#moduleList")?.addEventListener("click", e => {
+    const btn = e.target.closest(".mi-del");
+    if (!btn) return;
+    const id = btn.dataset.delId;
+    const idx = state.modulesList.findIndex(m => m.id === id);
+    if (idx === -1) return;
+    state.modulesList.splice(idx, 1);
+    renderModuleList();
+    renderContentList();
+    syncAllControlPanels();
+  });
+
+  // 添加模块按钮
+  $("#moduleAddBtn")?.addEventListener("click", () => {
+    const sel = $("#moduleAddType");
+    if (!sel) return;
+    const type = sel.value;
+    state.modulesList.push({ id: uidGen("m"), type, visible: true });
+    renderModuleList();
+    renderContentList();
+    syncAllControlPanels();
   });
 
   // 标题 + 文案编辑器（④ 区）：渲染 + 双向绑定
@@ -1748,19 +1936,25 @@ function bindEvents() {
     if (!ctrlShowFooter.checked) syncFooter();
   }
 
-  // Content 模块
+  // Content 模块（总开关：控制整个 Content 区显隐 + 操作面板编排区显隐）
   const ctrlShowContent = $("#ctrlShowContentModules");
   if (ctrlShowContent) {
-    ctrlShowContent.addEventListener("change", () => {
+    const applyContentSwitch = () => {
       $("#contentModulesArea").style.display = ctrlShowContent.checked ? "" : "none";
-      if (!ctrlShowContent.checked) {
-        // 隐藏所有 content block
-        $$("#h5Content .content-block").forEach(el => el.classList.add("hidden"));
+      const contentEl = $("#h5Content");
+      if (contentEl) contentEl.style.display = ctrlShowContent.checked ? "" : "none";
+      // 操作面板 ④~⑧ 子区域同步显隐：勾选时按 modulesList 决定，未勾选时全部隐藏
+      if (ctrlShowContent.checked) {
+        syncAllControlPanels();
       } else {
-        // 恢复显示由 state.modules 控制
-        renderModules();
+        Object.values(MOD_TO_PANEL).forEach(sel => {
+          const el = $(sel);
+          if (el) el.style.display = "none";
+        });
       }
-    });
+    };
+    ctrlShowContent.addEventListener("change", applyContentSwitch);
+    if (!ctrlShowContent.checked) applyContentSwitch();
   }
 
   // 活动规则
